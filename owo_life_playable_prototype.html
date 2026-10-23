@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>OWO LIFE — Playable Prototype</title>
+<style>
+:root{--gold:#ffbf18;--ink:#10202a;--glass:rgba(8,20,28,.82)}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#9ed8f4;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:white;touch-action:none}
+#game{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+.panel{position:fixed;background:var(--glass);border:1px solid #ffffff38;border-radius:15px;backdrop-filter:blur(8px);box-shadow:0 6px 24px #0003}
+#brand{top:12px;left:12px;padding:10px 13px;max-width:65%}#brand b{display:block;font-size:20px;letter-spacing:1px;color:var(--gold)}#brand span{font-size:11px;opacity:.9}
+#wallet{top:12px;right:12px;padding:10px 12px;text-align:right}#wallet small{display:block;font-size:10px;opacity:.8}#cash{font-size:18px;color:#80ffb0;font-weight:800}
+#mission{left:12px;top:94px;padding:10px 12px;width:min(245px,62vw);font-size:12px;line-height:1.35}#mission strong{display:block;color:var(--gold);font-size:13px;margin-bottom:3px}
+#toast{left:50%;top:46%;transform:translate(-50%,-50%);padding:12px 16px;font-weight:700;display:none;text-align:center;max-width:85vw}
+#controls{position:fixed;bottom:18px;left:16px;display:flex;align-items:end;gap:14px}
+#stick{width:116px;height:116px;border-radius:50%;background:#07172077;border:2px solid #ffffff80;position:relative;touch-action:none}
+#knob{position:absolute;left:34px;top:34px;width:44px;height:44px;border-radius:50%;background:#ffbf18e8;border:2px solid white;box-shadow:0 3px 10px #0005}
+#hint{font-size:10px;text-align:center;opacity:.85;margin-top:5px}
+#actions{position:fixed;right:15px;bottom:22px;display:flex;flex-direction:column;gap:9px;align-items:center}
+button{font:inherit;border:0;cursor:pointer;touch-action:manipulation}
+.action{border-radius:15px;background:var(--gold);color:#17232b;padding:13px 15px;font-weight:850;box-shadow:0 4px 0 #b77a00;min-width:104px}
+.action:active{transform:translateY(2px);box-shadow:0 2px 0 #b77a00}
+#help{position:fixed;bottom:155px;right:12px;font-size:10px;padding:8px 10px;max-width:145px;line-height:1.4}
+#start{position:fixed;inset:0;background:linear-gradient(#08243188,#06151ce8);display:flex;align-items:center;justify-content:center;padding:22px;z-index:5}
+#startcard{max-width:390px;text-align:center;padding:25px 22px;border-radius:24px;background:#102630f2;border:1px solid #ffffff40;box-shadow:0 20px 80px #0007}
+#startcard h1{font-size:36px;line-height:1;margin:0;color:var(--gold);letter-spacing:2px}#startcard p{font-size:14px;line-height:1.5;color:#e6f1f4}
+#play{background:var(--gold);color:#15232a;font-size:16px;font-weight:900;border-radius:13px;padding:14px 26px;margin-top:8px}
+#startcard .tiny{font-size:10px;opacity:.7}
+@media(min-width:700px){#stick{width:130px;height:130px}#knob{left:39px;top:39px}#mission{top:100px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="brand" class="panel"><b>OWO LIFE</b><span>YOUR TOWN. YOUR STORY. · PROTOTYPE 0.1</span></div>
+<div id="wallet" class="panel"><small>VIRTUAL WALLET</small><div id="cash">₦ 1,000</div></div>
+<div id="mission" class="panel"><strong>MISSION 01 · MARKET RUN</strong><span id="missiontext">Walk to Owo Main Market, then tap “Do Job” to earn ₦500.</span></div>
+<div id="toast" class="panel"></div>
+<div id="controls"><div><div id="stick"><div id="knob"></div></div><div id="hint">TOUCH & DRAG TO WALK</div></div></div>
+<div id="actions"><button id="job" class="action">🧺 Do Job</button><button id="reset" class="action" style="background:#e8f2f5;box-shadow:0 4px 0 #8a9ba0">↻ Reset</button></div>
+<div id="help" class="panel">Move near the MARKET stall to complete your first job. Keyboard: WASD / arrow keys.</div>
+<div id="start"><div id="startcard"><h1>OWO LIFE</h1><p><b>Welcome to Owo, Ondo State.</b><br>Explore a tiny 3D town, find the market and earn your first virtual naira.</p><p>Use the joystick on your phone or WASD / arrow keys on a computer.</p><button id="play">ENTER TOWN ▶</button><p class="tiny">Early playable prototype · Game money has no real-world value.</p></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js';
+
+const root=document.getElementById('game');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x9ed8f4); scene.fog=new THREE.Fog(0x9ed8f4,42,105);
+const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,180);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'low-power'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=false;
+renderer.outputColorSpace=THREE.SRGBColorSpace;root.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xe6f7ff,0x68774b,2.1));
+const sun=new THREE.DirectionalLight(0xfff0d0,2.1);sun.position.set(-15,28,12);scene.add(sun);
+const mat=(color,roughness=1)=>new THREE.MeshStandardMaterial({color,roughness});
+const grass=mat(0x6ca85b),road=mat(0x424b50),sidewalk=mat(0xc9c2a8),white=mat(0xf4eee0),dark=mat(0x243039),gold=mat(0xffbd18),green=mat(0x16845b),red=mat(0xc84b37);
+function box(w,h,d,m,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);scene.add(o);return o}
+function ground(w,d,m,x=0,z=0){return box(w,.18,d,m,x,-.12,z)}
+ground(120,120,grass);
+ground(12,105,road,0,.0);ground(105,12,road,0,0);
+ground(3,105,sidewalk,-7.4,0);ground(3,105,sidewalk,7.4,0);ground(105,3,sidewalk,0,-7.4);ground(105,3,sidewalk,0,7.4);
+// road dashes
+for(let z=-48;z<52;z+=7)box(.16,.025,3,mat(0xf5edcf),0,.0,z);
+for(let x=-48;x<52;x+=7)box(3,.025,.16,mat(0xf5edcf),x,.0,0);
+function building(x,z,w,d,h,color,label){
+ box(w,h,d,mat(color),x,h/2,z);
+ box(w+0.25,.22,d+.25,mat(0x8b4432),x,h+.05,z);
+ for(let xx=x-w*.32;xx<x+w*.4;xx+=Math.max(1.5,w*.34)){
+   for(let yy=1.1;yy<h-.4;yy+=1.7)box(.55,.75,.06,mat(0x7fc2d3),xx,yy,z-d/2-.035);
+ }
+ box(w*.8,.42,.16,mat(0x173e4a),x,1.35,z-d/2-.1);
+ if(label){const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;const c=canvas.getContext('2d');c.fillStyle='#173e4a';c.fillRect(0,0,512,128);c.fillStyle='#ffca28';c.font='bold 48px sans-serif';c.textAlign='center';c.fillText(label,256,80);const tex=new THREE.CanvasTexture(canvas);const sign=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(w*.88,8),.95),new THREE.MeshBasicMaterial({map:tex}));sign.position.set(x,Math.min(h-0.1,3),z-d/2-.14);scene.add(sign);}
+}
+const colors=[0xe7b98b,0xd4d9d6,0xe9d6a7,0xb7d4c5,0xe8a79a,0xd9c6e8,0xf0d9bd];
+for(let i=0;i<24;i++){
+ let sideX=i%2===0?-1:1;let z=-43+Math.floor(i/2)*7.4;let x=sideX*(13+(i%3)*4);
+ building(x,z,5+(i%3),5+(i%2)*2,3.3+(i%4)*.7,colors[i%colors.length],i===4?'OWO SHOP':null);
+}
+// Market stalls
+for(let i=0;i<5;i++){
+ let x=13+i*3.2,z=12+(i%2)*2;
+ box(2.7,1.8,2.3,mat(i%2?0xe6bd75:0xd9a15b),x,.9,z);
+ box(3.1,.22,2.7,mat(i%2?0x267b52:0xc34a37),x,2,z);
+ for(let k=0;k<3;k++) {const fruit=new THREE.Mesh(new THREE.SphereGeometry(.22,8,6),mat([0xe44a31,0xffce35,0x4b9b47][k]));fruit.position.set(x-0.6+k*.6,1.55,z-1.2);scene.add(fruit);}
+}
+building(18,20,13,7,5,0xe9c77e,'OWO MAIN MARKET');
+// trees
+function tree(x,z){const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.22,.32,2.1,7),mat(0x765035));trunk.position.set(x,1,z);scene.add(trunk);for(let i=0;i<3;i++){const crown=new THREE.Mesh(new THREE.SphereGeometry(1.25-i*.12,9,7),mat([0x3c8145,0x4d944b,0x2d713d][i]));crown.position.set(x+(i-1)*.45,2.5+i*.38,z);scene.add(crown);}}
+for(let z=-45;z<48;z+=10){tree(-11,z);tree(11,z);}
+for(let x=-45;x<48;x+=10){tree(x,-11);tree(x,11);}
+// a simple low-poly player
+const player=new THREE.Group();scene.add(player);
+const skin=mat(0x8c5437),shirt=mat(0x172d42),pants=mat(0x243f69),shoe=mat(0x171b20);
+const torso=new THREE.Mesh(new THREE.BoxGeometry(.72,.85,.38),shirt);torso.position.y=1.45;player.add(torso);
+const head=new THREE.Mesh(new THREE.SphereGeometry(.29,12,10),skin);head.position.y=2.12;player.add(head);
+const hair=new THREE.Mesh(new THREE.SphereGeometry(.3,10,6,0,Math.PI*2,0,Math.PI*.55),mat(0x171717));hair.position.y=2.25;player.add(hair);
+for(const x of [-.22,.22]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.23,.65,.25),pants);leg.position.set(x,.68,0);player.add(leg);const foot=new THREE.Mesh(new THREE.BoxGeometry(.25,.16,.38),shoe);foot.position.set(x,.22,-.06);player.add(foot);const arm=new THREE.Mesh(new THREE.BoxGeometry(.2,.7,.22),skin);arm.position.set(x*2,1.48,0);player.add(arm);}
+player.position.set(0,0,25);
+const marketPos=new THREE.Vector3(18,0,20);
+// marker at market
+const marker=new THREE.Mesh(new THREE.CylinderGeometry(.75,.75,.12,24),mat(0xffd52a));marker.position.set(18,.08,13);scene.add(marker);
+const beacon=new THREE.Mesh(new THREE.ConeGeometry(.42,.8,12),mat(0xffd52a));beacon.position.set(18,1,13);scene.add(beacon);
+const ring=new THREE.Mesh(new THREE.TorusGeometry(1.15,.08,8,28),mat(0xffd52a));ring.rotation.x=Math.PI/2;ring.position.set(18,.18,13);scene.add(ring);
+let cash=1000,done=false,started=false;const cashEl=document.getElementById('cash'),mission=document.getElementById('missiontext'),toast=document.getElementById('toast');
+function notify(t){toast.textContent=t;toast.style.display='block';clearTimeout(notify.timer);notify.timer=setTimeout(()=>toast.style.display='none',2300)}
+function updateUI(){cashEl.textContent='₦ '+cash.toLocaleString('en-NG');mission.textContent=done?'Job complete! You earned ₦500. Explore the town and try the job button again.':'Walk to the yellow marker at Owo Main Market, then tap “Do Job” to earn ₦500.'}
+document.getElementById('job').addEventListener('click',()=>{
+ if(!started)return;
+ const dist=player.position.distanceTo(marketPos);
+ if(dist>12){notify('Head toward the yellow marker at Owo Main Market first!');return;}
+ if(done){notify('You already completed this starter job. More jobs coming soon!');return;}
+ cash+=500;done=true;updateUI();notify('Job complete! +₦500 virtual money 🎉');
+});
+document.getElementById('reset').addEventListener('click',()=>{cash=1000;done=false;player.position.set(0,0,25);player.rotation.y=0;updateUI();notify('Town reset. Start a new shift!');});
+document.getElementById('play').addEventListener('click',()=>{started=true;document.getElementById('start').style.display='none';notify('Welcome to Owo! Find the yellow market marker.');});
+const keys={};addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();});addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const stick=document.getElementById('stick'),knob=document.getElementById('knob');let joy={x:0,y:0},drag=false,pointerId=null;
+function joystick(e){const r=stick.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,max=r.width*.34,len=Math.hypot(dx,dy)||1;if(len>max){dx=dx/len*max;dy=dy/len*max;}joy.x=dx/max;joy.y=dy/max;knob.style.transform=`translate(${dx}px,${dy}px)`;}
+stick.addEventListener('pointerdown',e=>{drag=true;pointerId=e.pointerId;stick.setPointerCapture(pointerId);joystick(e);});
+stick.addEventListener('pointermove',e=>{if(drag&&e.pointerId===pointerId)joystick(e);});
+function endJoy(){drag=false;pointerId=null;joy={x:0,y:0};knob.style.transform='translate(0,0)';}
+stick.addEventListener('pointerup',endJoy);stick.addEventListener('pointercancel',endJoy);stick.addEventListener('lostpointercapture',endJoy);
+let last=performance.now();
+function animate(now){
+ requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.04);last=now;
+ const forward=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0)-joy.y;
+ const right=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+joy.x;
+ const dir=new THREE.Vector3(right,0,-forward);if(dir.length()>1)dir.normalize();
+ if(started&&dir.lengthSq()>.001){player.position.addScaledVector(dir,dt*6);player.position.x=THREE.MathUtils.clamp(player.position.x,-48,48);player.position.z=THREE.MathUtils.clamp(player.position.z,-48,48);player.rotation.y=Math.atan2(dir.x,dir.z);player.position.y=Math.abs(Math.sin(now*.012))*.035;}
+ const target=new THREE.Vector3(player.position.x,1.1,player.position.z);
+ const camGoal=new THREE.Vector3(player.position.x,8.3,player.position.z+11.5);
+ camera.position.lerp(camGoal,.09);camera.lookAt(target);
+ marker.rotation.y+=dt*.6;ring.rotation.z+=dt*.7;beacon.position.y=1+Math.sin(now*.003)*.12;
+ renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+updateUI();
+</script>
+</body></html>
